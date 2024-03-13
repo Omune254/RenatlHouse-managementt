@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:rentalhouse_application/drawer/drawer.dart';
 import 'models/model.dart';
-import 'profile_creation_form.dart';
 
 class TenantDashboard extends StatelessWidget {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
