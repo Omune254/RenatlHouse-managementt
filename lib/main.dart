@@ -4,7 +4,6 @@ import 'package:rentalhouse_application/Home_page.dart';
 import 'package:rentalhouse_application/profile_creation_form.dart';
 import 'package:rentalhouse_application/tenantlogin.dart';
 import 'firebase_options.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
