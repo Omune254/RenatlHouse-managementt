@@ -2,43 +2,134 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'models/model.dart';
+import 'user_util.dart';
 
-class TenantDashboard extends StatelessWidget {
+class TenantDashboard extends StatefulWidget {
+  const TenantDashboard({Key? key}) : super(key: key);
+
+  @override
+  _TenantDashboardState createState() => _TenantDashboardState();
+}
+
+class _TenantDashboardState extends State<TenantDashboard> {
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  late List<House> houses;
+  late List<House> filteredHouses;
+  late TextEditingController searchController;
+
+  @override
+  void initState() {
+    super.initState();
+    houses = [];
+    filteredHouses = [];
+    searchController = TextEditingController();
+    fetchHouses();
+    searchController.addListener(filterHouses);
+    checkAndNavigateToProfile();
+  }
+
+  @override
+  void dispose() {
+    searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> checkAndNavigateToProfile() async {
+    final User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final bool profileComplete = await UserUtil.checkUserProfile(user);
+      if (!profileComplete) {
+        Navigator.pushNamed(context, '/profile_creation');
+      }
+    }
+  }
+
+  void fetchHouses() async {
+    final snapshot = await firestore.collection('houses').get();
+    setState(() {
+      houses = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return House.fromMap(data, doc.id);
+      }).toList();
+      filteredHouses = List.from(houses); // Initialize filteredHouses
+    });
+  }
+
+  void filterHouses() {
+    final searchTerm = searchController.text.toLowerCase();
+    setState(() {
+      filteredHouses = houses.where((house) {
+        return house.address.toLowerCase().contains(searchTerm) ||
+            house.roomType.toLowerCase().contains(searchTerm);
+      }).toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Tenant Dashboard'),
-        actions: [
-          ProfileButton(),
+      extendBodyBehindAppBar: true,
+      body: CustomScrollView(
+        slivers: <Widget>[
+          SliverAppBar(
+            title: Text('Tenant Dashboard'),
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            floating: true, // App bar will disappear when scrolling down
+            actions: [
+              ProfileButton(),
+            ],
+          ),
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Color.fromARGB(255, 74, 82, 90),
+                    Color.fromARGB(255, 232, 234, 236),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: TextField(
+                      controller: searchController,
+                      decoration: InputDecoration(
+                        enabledBorder: OutlineInputBorder(
+                          borderSide: const BorderSide(color: Colors.white),
+                          borderRadius: BorderRadius.circular(10.5),
+                        ),
+                        hintText: 'Search by address or room type',
+                        hintStyle: TextStyle(color: Colors.black87),
+                        prefixIcon: Icon(Icons.search),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                    ),
+                  ),
+                  if (filteredHouses.isNotEmpty)
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: NeverScrollableScrollPhysics(),
+                      itemCount: filteredHouses.length,
+                      itemBuilder: (context, index) {
+                        final house = filteredHouses[index];
+                        return HouseListItem(house: house);
+                      },
+                    ),
+                  if (filteredHouses.isEmpty && houses.isNotEmpty)
+                    Center(child: Text('No results found')),
+                  if (houses.isEmpty)
+                    Center(child: CircularProgressIndicator()),
+                ],
+              ),
+            ),
+          ),
         ],
-      ),
-      body: FutureBuilder<QuerySnapshot>(
-        future: firestore.collection('houses').get(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          if (snapshot.connectionState == ConnectionState.done) {
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
-              itemCount: snapshot.data!.docs.length,
-              itemBuilder: (context, index) {
-                final house = House.fromMap(
-                  snapshot.data!.docs[index].data() as Map<String, dynamic>?,
-                  snapshot.data!.docs[index].id,
-                );
-                return HouseListItem(house: house);
-              },
-            );
-          }
-
-          return Center(child: CircularProgressIndicator());
-        },
       ),
     );
   }
@@ -83,44 +174,49 @@ class HouseListItem extends StatelessWidget {
             SizedBox(height: 10),
             Row(
               children: [
-                Text('Price: \$${house.price}', style: TextStyle(fontSize: 16)),
+                Text('Price: Ksh ${house.price}',
+                    style: TextStyle(fontSize: 16)),
                 Spacer(),
                 ElevatedButton(
+                  style: ButtonStyle(
+                      backgroundColor:
+                          MaterialStateProperty.resolveWith((states) {
+                        if (states.contains(MaterialState.pressed)) {
+                          return Colors.black26;
+                        }
+                        return const Color.fromARGB(255, 12, 1, 1);
+                      }),
+                      shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                          RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(38)))),
                   onPressed: () {
                     _showBookingForm(context, house);
                   },
-                  child: Text('Book Now'),
+                  child: const Text(
+                    'Book Now',
+                    style: TextStyle(
+                        color: Color.fromARGB(221, 235, 232, 232),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16),
+                  ),
                 ),
               ],
             ),
             SizedBox(height: 10),
-            FutureBuilder<DocumentSnapshot>(
-              future: FirebaseFirestore.instance
-                  .collection('houses')
-                  .doc(house.id)
-                  .get(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return CircularProgressIndicator();
-                }
-                if (snapshot.hasError) {
-                  return Text('Error: ${snapshot.error}');
-                }
-                if (snapshot.hasData && snapshot.data != null) {
-                  final houseData = snapshot.data!;
-                  final imageUrl = houseData['imageUrl'] as String?;
-                  final roomType = houseData['roomType'] as String?;
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      if (imageUrl != null) Image.network(imageUrl),
-                      if (roomType != null) Text('Room Type: $roomType'),
-                    ],
-                  );
-                }
-                return Container();
-              },
-            ),
+            if (house.imageUrls != null && house.imageUrls!.isNotEmpty)
+              Column(
+                children: [
+                  for (var imageUrl in house.imageUrls!)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Image.network(imageUrl),
+                    ),
+                ],
+              ),
+            SizedBox(height: 10),
+            if (house.roomType != null)
+              Text('Room Type: ${house.roomType}',
+                  style: TextStyle(fontSize: 16)),
           ],
         ),
       ),
@@ -181,12 +277,22 @@ class _BookingRequestFormState extends State<BookingRequestForm> {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Color.fromARGB(255, 74, 82, 90),
+            Color.fromARGB(255, 232, 234, 236),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
       child: Form(
         key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
+            const Text(
               'House Details:',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
@@ -204,8 +310,16 @@ class _BookingRequestFormState extends State<BookingRequestForm> {
                 child: TextFormField(
                   controller: _moveInDateController,
                   decoration: InputDecoration(
-                    labelText: 'Move-In Date',
+                    enabledBorder: OutlineInputBorder(
+                      borderSide:
+                          BorderSide(color: Color.fromARGB(255, 165, 161, 161)),
+                      borderRadius: BorderRadius.circular(10.5),
+                    ),
+                    hintText: 'Move-In Date',
                     prefixIcon: Icon(Icons.calendar_today),
+                    hintStyle: TextStyle(color: Colors.black87),
+                    filled: true,
+                    fillColor: Colors.white,
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -216,10 +330,20 @@ class _BookingRequestFormState extends State<BookingRequestForm> {
                 ),
               ),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             TextFormField(
               controller: _durationController,
-              decoration: InputDecoration(labelText: 'Duration of Stay'),
+              decoration: InputDecoration(
+                enabledBorder: OutlineInputBorder(
+                  borderSide:
+                      BorderSide(color: Color.fromARGB(255, 165, 161, 161)),
+                  borderRadius: BorderRadius.circular(10.5),
+                ),
+                hintText: 'Duration of Stay',
+                hintStyle: TextStyle(color: Colors.black87),
+                filled: true,
+                fillColor: Colors.white,
+              ),
               keyboardType: TextInputType.number,
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -232,19 +356,45 @@ class _BookingRequestFormState extends State<BookingRequestForm> {
                 return null;
               },
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             TextFormField(
               controller: _additionalRequirementsController,
-              decoration: InputDecoration(labelText: 'Additional Requirements'),
+              decoration: InputDecoration(
+                enabledBorder: OutlineInputBorder(
+                  borderSide:
+                      BorderSide(color: Color.fromARGB(255, 165, 161, 161)),
+                  borderRadius: BorderRadius.circular(10.5),
+                ),
+                hintText: 'Additional Requirements',
+                hintStyle: TextStyle(color: Colors.black87),
+                filled: true,
+                fillColor: Colors.white,
+              ),
             ),
             SizedBox(height: 20),
             ElevatedButton(
+              style: ButtonStyle(
+                  backgroundColor: MaterialStateProperty.resolveWith((states) {
+                    if (states.contains(MaterialState.pressed)) {
+                      return Colors.black26;
+                    }
+                    return const Color.fromARGB(255, 12, 1, 1);
+                  }),
+                  shape: MaterialStateProperty.all<RoundedRectangleBorder>(
+                      RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(38)))),
               onPressed: () {
                 if (_formKey.currentState!.validate()) {
                   _submitBookingRequest(context);
                 }
               },
-              child: Text('Submit Booking Request'),
+              child: const Text(
+                'Submit Booking Request',
+                style: TextStyle(
+                    color: Color.fromARGB(221, 235, 232, 232),
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16),
+              ),
             ),
           ],
         ),

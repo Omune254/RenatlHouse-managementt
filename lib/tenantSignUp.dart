@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:rentalhouse_application/resable_wigdets/resable_wigdet.dart';
@@ -15,6 +16,8 @@ class _TenantSignUpState extends State<TenantSignUp> {
   final TextEditingController _passwordTextController = TextEditingController();
   final TextEditingController _emailTextContoller = TextEditingController();
   final TextEditingController _userNameTextController = TextEditingController();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,11 +66,14 @@ class _TenantSignUpState extends State<TenantSignUp> {
                   var connectivityResult =
                       await Connectivity().checkConnectivity();
                   if (connectivityResult != ConnectivityResult.none) {
-                    FirebaseAuth.instance
+                    _auth
                         .createUserWithEmailAndPassword(
                             email: _emailTextContoller.text,
                             password: _passwordTextController.text)
-                        .then((value) {
+                        .then((userCredential) {
+                      // Create user document in Firestore
+                      _createUserDocument(userCredential.user!.uid,
+                          _emailTextContoller.text, 'tenant');
                       print("created new account");
                       Navigator.push(
                           context,
@@ -78,7 +84,7 @@ class _TenantSignUpState extends State<TenantSignUp> {
                           content: Text('Signed up successfully'),
                         ),
                       );
-                    }).onError((error, stackTrace) {
+                    }).catchError((error) {
                       print("Error ${error.toString()}");
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
@@ -100,5 +106,17 @@ class _TenantSignUpState extends State<TenantSignUp> {
         ),
       ),
     );
+  }
+
+  void _createUserDocument(String userId, String email, String role) {
+    // Store additional user information in Firestore
+    // Example code to store user role
+    FirebaseFirestore.instance.collection('users').doc(userId).set({
+      'email': email,
+      'role': role,
+    }).catchError((error) {
+      print('Error creating user document: $error');
+      // Handle error
+    });
   }
 }

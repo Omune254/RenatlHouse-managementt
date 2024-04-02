@@ -1,6 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:rentalhouse_application/forgot_tenant.dart';
+import 'package:rentalhouse_application/profile_creation_form.dart';
 import 'package:rentalhouse_application/resable_wigdets/resable_wigdet.dart';
 import 'package:rentalhouse_application/tenantSignUp.dart';
 import 'package:rentalhouse_application/tenant_page.dart';
@@ -16,6 +18,7 @@ class MyLoginScreen extends StatefulWidget {
 class _MyLoginScreenState extends State<MyLoginScreen> {
   final TextEditingController _passwordTextController = TextEditingController();
   final TextEditingController _emailTextContoller = TextEditingController();
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,10 +45,18 @@ class _MyLoginScreenState extends State<MyLoginScreen> {
             ),
             child: Column(
               children: <Widget>[
+                const Icon(
+                  Icons.lock,
+                  size: 100,
+                ),
+                const Text(
+                  'Welcome back you\'ve been missed!',
+                  style: TextStyle(color: Colors.white),
+                ),
                 const SizedBox(height: 30),
                 reusableTextField(
                   "Enter Email",
-                  Icons.verified_user,
+                  Icons.email,
                   false,
                   _emailTextContoller,
                 ),
@@ -93,11 +104,30 @@ class _MyLoginScreenState extends State<MyLoginScreen> {
                         .signInWithEmailAndPassword(
                             email: _emailTextContoller.text,
                             password: _passwordTextController.text)
-                        .then((value) {
-                      Navigator.push(
+                        .then((value) async {
+                      // Check if the user's profile exists in Firestore
+                      final userProfileSnapshot = await FirebaseFirestore
+                          .instance
+                          .collection('profiles')
+                          .doc(value.user!.uid)
+                          .get();
+
+                      if (userProfileSnapshot.exists) {
+                        // Profile exists, navigate to tenant dashboard
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => TenantDashboard()));
+                      } else {
+                        // Profile doesn't exist, navigate to profile creation form
+                        Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
-                              builder: (context) => TenantDashboard()));
+                            builder: (context) => ProfileCreationForm(),
+                          ),
+                        );
+                      }
+
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('Logged in successfully'),
@@ -107,7 +137,8 @@ class _MyLoginScreenState extends State<MyLoginScreen> {
                       print('Error ${error.toString()}');
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
-                          content: Text('Login failed. Please try again.'),
+                          content: Text(
+                              'Incorrect email or password. Please try again.'),
                         ),
                       );
                     });

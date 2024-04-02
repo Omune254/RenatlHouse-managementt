@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rentalhouse_application/Profile_screen.dart';
 import 'package:rentalhouse_application/models/model.dart';
 
 class ProfileCreationForm extends StatefulWidget {
@@ -14,7 +15,7 @@ class _ProfileCreationFormState extends State<ProfileCreationForm> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
-  final TextEditingController _genderController = TextEditingController();
+  String? _selectedGender;
 
   @override
   Widget build(BuildContext context) {
@@ -23,79 +24,153 @@ class _ProfileCreationFormState extends State<ProfileCreationForm> {
         title: Text('Profile Creation'),
       ),
       body: Container(
-        padding: EdgeInsets.all(20),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Color.fromARGB(255, 74, 82, 90),
+              Color.fromARGB(255, 232, 234, 236)
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        padding: const EdgeInsets.all(20),
         child: Form(
           key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextFormField(
-                controller: _nameController,
-                decoration: InputDecoration(labelText: 'Name'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your name';
-                  }
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _emailController,
-                decoration: InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  // You can add more email validation if needed
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _phoneController,
-                decoration: InputDecoration(labelText: 'Phone'),
-                keyboardType: TextInputType.phone,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your phone number';
-                  }
-                  // You can add more phone number validation if needed
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _ageController,
-                decoration: InputDecoration(labelText: 'Age'),
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your age';
-                  }
-                  // You can add more age validation if needed
-                  return null;
-                },
-              ),
-              TextFormField(
-                controller: _genderController,
-                decoration: InputDecoration(labelText: 'Gender'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your gender';
-                  }
-                  // You can add more gender validation if needed
-                  return null;
-                },
-              ),
-              SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    _submitProfile(context);
-                  }
-                },
-                child: Text('Save Profile'),
-              ),
-            ],
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: _nameController,
+                  decoration: InputDecoration(
+                    prefixIcon: Icon(Icons.person),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                      borderRadius: BorderRadius.circular(10.5),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'Name',
+                    hintStyle: TextStyle(color: Colors.black87),
+                  ),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your name';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 20.0),
+                TextFormField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    prefixIcon: Icon(Icons.email),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                      borderRadius: BorderRadius.circular(10.5),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'Email',
+                    hintStyle: TextStyle(color: Colors.black87),
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 20.0),
+                TextFormField(
+                  controller: _phoneController,
+                  decoration: InputDecoration(
+                    prefixIcon: Icon(Icons.phone),
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                      borderRadius: BorderRadius.circular(10.5),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'Phone number',
+                    hintStyle: TextStyle(color: Colors.black87),
+                  ),
+                  keyboardType: TextInputType.phone,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your phone number';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 20.0),
+                TextFormField(
+                  controller: _ageController,
+                  decoration: InputDecoration(
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                      borderRadius: BorderRadius.circular(10.5),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'Age',
+                    hintStyle: TextStyle(color: Colors.black87),
+                  ),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your age';
+                    }
+                    return null;
+                  },
+                ),
+                SizedBox(height: 20.0),
+                DropdownButtonFormField<String>(
+                  value: _selectedGender,
+                  decoration: InputDecoration(
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: BorderSide(color: Colors.white),
+                      borderRadius: BorderRadius.circular(10.5),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                    hintText: 'Gender',
+                    hintStyle: TextStyle(color: Colors.black87),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedGender = value;
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please select your gender';
+                    }
+                    return null;
+                  },
+                  items: ['Male', 'Female', 'Other']
+                      .map((gender) => DropdownMenuItem(
+                            child: Text(gender),
+                            value: gender,
+                          ))
+                      .toList(),
+                ),
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      _submitProfile(context);
+                    }
+                  },
+                  child: Text(
+                    'Save Profile',
+                    style: TextStyle(color: Colors.black87),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -113,7 +188,6 @@ class _ProfileCreationFormState extends State<ProfileCreationForm> {
     final email = _emailController.text;
     final phone = _phoneController.text;
     final age = _ageController.text;
-    final gender = _genderController.text;
 
     final profile = UserProfile(
       userId: user.uid,
@@ -121,8 +195,7 @@ class _ProfileCreationFormState extends State<ProfileCreationForm> {
       email: email,
       phone: phone,
       age: age,
-      gender: gender,
-      // Add more profile fields if needed
+      gender: _selectedGender ?? '', // Use the selected gender
     );
 
     try {
@@ -130,17 +203,32 @@ class _ProfileCreationFormState extends State<ProfileCreationForm> {
           .collection('profiles')
           .doc(user.uid)
           .set(profile.toMap());
+
+      final profileSnapshot = await FirebaseFirestore.instance
+          .collection('profiles')
+          .doc(user.uid)
+          .get();
+
+      final updatedProfile =
+          UserProfile.fromMap(profileSnapshot.data() as Map<String, dynamic>);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Profile saved successfully')),
       );
-      // Clear the form fields after submission
+
       _nameController.clear();
       _emailController.clear();
       _phoneController.clear();
       _ageController.clear();
-      _genderController.clear();
-      // Close the profile creation form
+
       Navigator.of(context).pop();
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProfileScreen(profile: updatedProfile),
+        ),
+      );
     } catch (error) {
       print('Error saving profile: $error');
       ScaffoldMessenger.of(context).showSnackBar(

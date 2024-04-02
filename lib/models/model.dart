@@ -1,32 +1,41 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 class House {
   final String id;
   final String address;
-  final String imageUrl;
+  final List<String> imageUrls;
   final double price;
   final String roomType;
+  final double roomNumber;
 
-  House(
-      {required this.id,
-      required this.address,
-      required this.imageUrl,
-      required this.price,
-      required this.roomType});
+  House({
+    required this.id,
+    required this.address,
+    required this.imageUrls,
+    required this.price,
+    required this.roomType,
+    required this.roomNumber,
+  });
 
   factory House.fromMap(Map<String, dynamic>? data, String id) {
     return House(
-        id: id,
-        address: data?['address'],
-        imageUrl: data?['imageUrl'],
-        price: data?['price'].toDouble(),
-        roomType: data?['roomType']);
+      id: id,
+      address: data?['address'],
+      imageUrls: List<String>.from(data?['imageUrls'] ?? []),
+      price: data?['price'].toDouble(),
+      roomType: data?['roomType'],
+      roomNumber: data?['roomNumber'].toDouble(),
+    );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'address': address,
-      'imageUrl': imageUrl,
+      'imageUrls': imageUrls,
       'price': price,
-      'roomType': roomType
+      'roomType': roomType,
+      'roomNumber': roomNumber,
     };
   }
 }
@@ -135,5 +144,32 @@ class UserProfile {
       age: map['age'] ?? '',
       gender: map['gender'] ?? '',
     );
+  }
+}
+
+class UserHelper {
+  static FirebaseFirestore _db = FirebaseFirestore.instance;
+
+  static Future<void> saveUser(User user) async {
+    try {
+      Map<String, dynamic> userData = {
+        "name": user.displayName,
+        "email": user.email,
+        "last_login": user.metadata.lastSignInTime?.millisecondsSinceEpoch,
+        "created_at": user.metadata.creationTime?.millisecondsSinceEpoch,
+        "role": "user",
+      };
+      final userRef = _db.collection("users").doc(user.uid);
+      if ((await userRef.get()).exists) {
+        await userRef.update({
+          "last_login": user.metadata.lastSignInTime?.millisecondsSinceEpoch,
+        });
+      } else {
+        await userRef.set(userData);
+      }
+    } catch (error) {
+      print("Error saving user data: $error");
+      throw error; // Throw the error to handle it outside
+    }
   }
 }
